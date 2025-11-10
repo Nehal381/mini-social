@@ -1,40 +1,48 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 
+/* Authentication Context */
 const AuthContext = createContext();
 
+/* AuthProvider Component */
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null); // { id, username, token }
 
-  // Restore user/token from localStorage on refresh
+  /* Load user from localStorage on first render */
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setToken(storedToken);
+    try {
+      const savedUser = localStorage.getItem("user");
+      if (savedUser) setUser(JSON.parse(savedUser));
+    } catch (error) {
+      console.error("Error loading user from localStorage:", error);
+      localStorage.removeItem("user"); // prevent corrupt data
     }
   }, []);
 
-  const login = (data) => {
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("token", data.token);
+  /* Login: Save user data and token */
+  const login = ({ id, username, token }) => {
+    const userData = { id, username, token };
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
+  /* Logout: Clear user data */
   const logout = () => {
     setUser(null);
-    setToken(null);
     localStorage.removeItem("user");
-    localStorage.removeItem("token");
   };
 
+  /* Provide user and auth methods globally */
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+/* Custom hook for consuming auth context */
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context)
+    throw new Error("useAuth must be used within an AuthProvider");
+  return context;
+};

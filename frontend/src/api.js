@@ -1,47 +1,42 @@
+/* Base API URL */
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
-// ✅ Signup
+/* Helper: Parse JSON and handle HTTP errors */
+const handleJSON = async (res) => {
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || "Request failed");
+  }
+  return res.json();
+};
+
+/* Auth: Signup */
 export async function signupUser(data) {
   const res = await fetch(`${API_BASE}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error("Signup failed:", errText);
-    throw new Error("Signup failed");
-  }
-
-  return res.json();
+  return handleJSON(res);
 }
 
-// ✅ Login
+/* Auth: Login */
 export async function loginUser(data) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
-  if (!res.ok) {
-    const errText = await res.text();
-    console.error("Login failed:", errText);
-    throw new Error("Login failed");
-  }
-
-  return res.json();
+  return handleJSON(res);
 }
 
-// ✅ Fetch all posts
+/* Posts: Fetch all */
 export async function fetchPosts() {
   const res = await fetch(`${API_BASE}/posts`);
-  if (!res.ok) throw new Error("Failed to fetch posts");
-  return res.json();
+  return handleJSON(res);
 }
 
-// ✅ Create post (with token)
+/* Posts: Create new */
 export async function createPost(data, token) {
   const res = await fetch(`${API_BASE}/posts`, {
     method: "POST",
@@ -51,11 +46,37 @@ export async function createPost(data, token) {
     },
     body: JSON.stringify(data),
   });
+  return handleJSON(res);
+}
 
-  const text = await res.text();
-  if (!res.ok) {
-    console.error("Create post failed:", text);
-    throw new Error("Failed to create post");
-  }
-  return JSON.parse(text);
+/* Posts: Like / Unlike */
+export async function likePost(id, token) {
+  const res = await fetch(`${API_BASE}/posts/${id}/like`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return handleJSON(res);
+}
+
+/* Posts: Add comment */
+export async function addComment(id, text, token) {
+  const res = await fetch(`${API_BASE}/posts/${id}/comment`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ text }),
+  });
+  return handleJSON(res);
+}
+
+/* Posts: Delete (Author only) */
+export async function deletePost(id, token) {
+  const res = await fetch(`${API_BASE}/posts/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Delete failed");
+  return res.json();
 }

@@ -1,32 +1,82 @@
 import mongoose from "mongoose";
 
-// User Schema — defines how user data is stored
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true }, // store only hashed password
-});
-
-// Post Schema — for social feed posts
-const postSchema = new mongoose.Schema(
+/* User Schema */
+const userSchema = new mongoose.Schema(
   {
-    authorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    authorName: String,
-    text: String,
-    imageUrl: String,
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    comments: [
-      {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        username: String,
-        text: String,
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    passwordHash: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-// Export models
+/* Comment Subdocument Schema */
+const commentSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    username: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  { _id: false, timestamps: true }
+);
+
+/* Post Schema */
+const postSchema = new mongoose.Schema(
+  {
+    authorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    authorName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    text: {
+      type: String,
+      trim: true,
+    },
+    imageUrl: {
+      type: String,
+      trim: true,
+    },
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    comments: [commentSchema],
+  },
+  { timestamps: true }
+);
+
+/* Model Exports */
 export const User = mongoose.model("User", userSchema);
 export const Post = mongoose.model("Post", postSchema);

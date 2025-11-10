@@ -11,6 +11,7 @@ import { requireAuth } from "./middleware/auth.js";
 const app = express();
 const router = express.Router();
 
+/* Middleware Setup */
 app.use(express.json());
 app.use(
   cors({
@@ -20,79 +21,80 @@ app.use(
 );
 app.use(morgan("dev"));
 
+/* Database Setup */
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log(" MongoDB connected"))
-  .catch((e) => console.error("MongoDB Error:", e));
+  .then(() => console.log("MongoDB connected successfully"))
+  .catch((error) => console.error("MongoDB connection error:", error));
 
-function sign(user) {
-  return jwt.sign(
+/* Utility Functions */
+const generateToken = (user) =>
+  jwt.sign(
     { id: user._id, email: user.email, username: user.username },
-    process.env.JWT_SECRET
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
   );
-}
 
-// ---------------------- AUTH ROUTES ----------------------
-
+/* Auth Routes */
 router.post("/auth/signup", async (req, res) => {
   try {
     const { email, username, password } = req.body;
-    const existing = await User.findOne({ email });
-    if (existing)
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser)
       return res.status(400).json({ message: "Email already registered" });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, email, passwordHash });
+    const newUser = await User.create({ username, email, passwordHash });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Signup successful",
-      token: sign(user),
-      user: { id: user._id, username: user.username },
+      token: generateToken(newUser),
+      user: { id: newUser._id, username: newUser.username },
     });
   } catch (error) {
     console.error("Signup error:", error);
-    res.status(500).json({ message: "Error during signup" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
 router.post("/auth/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt:", email);
 
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
-    console.log("User found:", user.email);
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    console.log("Password match result:", isMatch);
-
     if (!isMatch) return res.status(400).json({ message: "Invalid password" });
 
-    res.json({
+    return res.json({
       message: "Login successful",
-      token: sign(user),
+      token: generateToken(user),
       user: { id: user._id, username: user.username },
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ message: "Server error during login" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
-// ---------------------- POST ROUTES ----------------------
+/* Post Routes */
+router.get("/posts", async (_req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 });
+    return res.json(posts);
+  } catch (error) {
+    console.error("Fetch posts error:", error);
+    return res.status(500).json({ message: "Failed to load posts" });
+  }
+});
 
 router.post("/posts", requireAuth, async (req, res) => {
-  console.log(" [CREATE POST CALLED]");
-  console.log("User decoded from token:", req.user);
-  console.log("Request body:", req.body);
-
   try {
     const { text, imageUrl } = req.body;
-    if (!text && !imageUrl) {
-      console.log("Missing text or image");
-      return res.status(400).json({ message: "Add text or image" });
-    }
+    if (!text && !imageUrl)
+      return res.status(400).json({ message: "Post must have text or image" });
 
     const post = await Post.create({
       authorId: req.user.id,
@@ -101,26 +103,74 @@ router.post("/posts", requireAuth, async (req, res) => {
       imageUrl,
     });
 
-    console.log(" Post created:", post);
-    res.status(201).json(post);
+    return res.status(201).json(post);
   } catch (error) {
-    console.error(" Error creating post:", error);
-    res.status(500).json({ message: "Server error while creating post" });
+    console.error("Create post error:", error);
+    return res.status(500).json({ message: "Failed to create post" });
   }
 });
 
-router.get("/posts", async (req, res) => {
+router.post("/posts/:id/like", requireAuth, async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 });
-    res.json(posts);
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    const userId = req.user.id;
+    const index = post.likes.findIndex((like) => String(like) === String(userId));
+
+    if (index === -1) post.likes.push(userId);
+    else post.likes.splice(index, 1);
+
+    await post.save();
+    return res.json(post);
   } catch (error) {
-    console.error("Feed error:", error);
-    res.status(500).json({ message: "Failed to load posts" });
+    console.error("Like toggle error:", error);
+    return res.status(500).json({ message: "Failed to update like" });
   }
 });
 
-// ---------------------- MOUNT ROUTER ----------------------
+router.post("/posts/:id/comment", requireAuth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text?.trim()) return res.status(400).json({ message: "Empty comment" });
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    post.comments.push({
+      userId: req.user.id,
+      username: req.user.username,
+      text,
+      createdAt: new Date(),
+    });
+
+    await post.save();
+    return res.json(post);
+  } catch (error) {
+    console.error("Comment error:", error);
+    return res.status(500).json({ message: "Failed to add comment" });
+  }
+});
+
+router.delete("/posts/:id", requireAuth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    if (String(post.authorId) !== String(req.user.id))
+      return res.status(403).json({ message: "Unauthorized to delete this post" });
+
+    await Post.deleteOne({ _id: post._id });
+    return res.json({ message: "Post deleted successfully" });
+  } catch (error) {
+    console.error("Delete post error:", error);
+    return res.status(500).json({ message: "Failed to delete post" });
+  }
+});
+
+/* App Mount */
 app.use("/api", router);
 
+/* Server Setup */
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(` Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

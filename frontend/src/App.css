@@ -1,3 +1,4 @@
+/* Root Container */
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -5,19 +6,23 @@
   text-align: center;
 }
 
+/* Logo (optional - for brand/demo components) */
 .logo {
   height: 6em;
   padding: 1.5em;
+  transition: filter 300ms ease;
   will-change: filter;
-  transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.react:hover {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
+/* Logo Spin Animation (for optional demo use) */
 @keyframes logo-spin {
   from {
     transform: rotate(0deg);
@@ -33,39 +38,65 @@
   }
 }
 
+/* Card Container (used in simple components/forms) */
 .card {
   padding: 2em;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+/* Info Text */
 .read-the-docs {
   color: #888;
 }
+
+/* Global Body Styles */
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Inter", Arial, sans-serif;
   background-color: #f5f7fa;
   margin: 0;
   padding: 20px;
+  color: #213547;
 }
 
+/* Buttons */
 button {
   background-color: #007bff;
-  color: white;
+  color: #fff;
   border: none;
   padding: 8px 14px;
   margin: 5px;
   border-radius: 4px;
   cursor: pointer;
+  transition: background-color 0.25s ease;
 }
 
+button:hover {
+  background-color: #0056b3;
+}
+
+/* Forms */
 form {
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 250px;
+  margin: 0 auto;
 }
 
-input, textarea {
+/* Inputs and Textareas */
+input,
+textarea {
   padding: 8px;
   border: 1px solid #ccc;
   border-radius: 4px;
+  font-size: 1rem;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 4px rgba(0, 123, 255, 0.25);
 }
